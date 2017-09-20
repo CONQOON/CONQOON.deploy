@@ -1,0 +1,57 @@
+---
+# Base configuration of the server. Do not add any php or nginx specific stuff here, because we want to keep it as
+# generic and minimal as possible
+
+- name: Generate & update locale to de_DE.UTF8
+  shell: "locale-gen de_DE.UTF-8 && update-locale LANG=de_DE.UTF-8"
+
+- name: Add loopback references to our domain in /etc/hosts
+  lineinfile:
+    dest=/etc/hosts
+    state=present
+    line="127.0.0.1 {{ baseconfig_hostname }}"
+
+- name: Disallow password authentication
+  lineinfile:
+    dest=/etc/ssh/sshd_config
+    state=present
+    regexp="^PasswordAuthentication"
+    line="PasswordAuthentication no"
+  notify: restart sshd
+
+- name: Disallow challenge response authentication
+  lineinfile:
+    dest=/etc/ssh/sshd_config
+    state=present
+    regexp="^ChallengeResponseAuthentication"
+    line="ChallengeResponseAuthentication no"
+  notify: restart sshd
+
+- name: Make sure global known_hosts exists
+  file: path=/etc/ssh/ssh_known_hosts state=touch
+
+- name: Add hosts to known_hosts
+  known_hosts:
+    name={{ item.name }}
+    key="{{ lookup('pipe', 'ssh-keyscan -t rsa -p {{ item.port }} {{ item.host }}') }}"
+    path=/etc/ssh/ssh_known_hosts
+  with_items: config_ssh_known_hosts
+  ignore_errors: yes
+  when: baseconfig_ssh_known_hosts
+
+- name: Ensure ssh agent socket environment variable persists when sudoing
+  lineinfile:
+    dest=/etc/sudoers
+    state=present
+    insertafter="^Defaults"
+    line='Defaults\tenv_keep += "SSH_AUTH_SOCK"'
+    validate="visudo -cf %s"
+
+- name: Allow passwordless sudo - DO NOT USE IN PRODUCTION!
+  lineinfile:
+    dest=/etc/sudoers
+    state=present
+    regexp="^%sudo"
+    line="%sudo\tALL=(ALL:ALL) NOPASSWD:ALL"
+    validate="visudo -cf %s"
+  when: baseconfig_allow_passwordless_sudo

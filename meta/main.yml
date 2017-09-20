@@ -1,0 +1,14 @@
+galaxy_info:
+  author: Benjamin Gröner
+  description: Base Ubuntu server configuration role
+  company: CONQOON
+
+  license: MIT
+
+  min_ansible_version: 2.0
+
+  galaxy_tags:
+  - Ubuntu
+  - Configuration
+
+dependencies: []
